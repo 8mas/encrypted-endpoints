@@ -1,6 +1,6 @@
 from typing import Annotated, Optional
 
-from fastapi import Cookie, Depends, FastAPI, Form, Request, status
+from fastapi import HTTPException, Cookie, Depends, FastAPI, Form, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -69,3 +69,18 @@ def auth(username: str = Form(...), password: str = Form(...)) -> RedirectRespon
     response.set_cookie(key="username", value=username)
     response.set_cookie(key="password", value=password)
     return response
+
+
+@app.get("/posts/")
+def get_posts(user: Optional[dict] = Depends(get_current_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {"posts": posts}
+
+
+@app.post("/posts/", response_model=Post)
+def create_post(post: Post, user: Optional[dict] = Depends(get_current_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    posts.append(post)
+    return post

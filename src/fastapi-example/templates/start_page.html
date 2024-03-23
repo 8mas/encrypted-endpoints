@@ -27,14 +27,86 @@
     {% endif %}
 </div>
 
+{% if user %}
+<div class="create-post-button">
+    <button id="createPostButton">Create Post</button>
+</div>
+<div id="createPostForm" style="display: none;">
+    <h2>Create a New Post</h2>
+    <label for="postTitle">Title:</label>
+    <input type="text" id="postTitle" name="title" required>
+
+    <label for="postContent">Content:</label>
+    <textarea id="postContent" name="content" required></textarea>
+
+    <button type="submit" id="submitPost">Post</button>
+    <button type="button" id="cancelPost">Cancel</button>
+</div>
+{% endif %}
+
 <section class="posts-section">
-    {% for post in posts %}
-    <div class="post">
-        <h3>{{ post.title }}</h3>
-        <p>{{ post.content }}</p>
-        <p>Author: {{ post.author }}</p>
-        <p>Votes: {{ post.votes}} </p>
-    </div>
-    {% endfor %}
+    <!-- Posts will be inserted here by JavaScript -->
 </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const createPostButton = document.getElementById('createPostButton');
+        const createPostForm = document.getElementById('createPostForm');
+        const cancelPostButton = document.getElementById('cancelPost');
+
+        if (createPostButton) {
+            createPostButton.addEventListener('click', function () {
+                createPostForm.style.display = 'block';
+            });
+        }
+
+        if (cancelPostButton) {
+            cancelPostButton.addEventListener('click', function () {
+                createPostForm.style.display = 'none';
+            });
+        }
+
+        document.getElementById('submitPost').addEventListener('click', function (e) {
+            e.preventDefault();
+            const title = document.getElementById('postTitle').value;
+            const content = document.getElementById('postContent').value;
+            // Assuming you have a user variable in your context, otherwise adapt accordingly
+            const user = {{ user | tojson
+        }};
+
+    fetch('/posts/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title, content, author: user.username, votes: 0 }),
+    })
+        .then(response => response.json())
+        .then(post => {
+            const postsContainer = document.querySelector('.posts-section');
+            postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
+            document.getElementById('postTitle').value = '';
+            document.getElementById('postContent').value = '';
+            createPostForm.style.display = 'none';
+        })
+        .catch(error => console.error('Error:', error));
+    });
+
+    function loadAndDisplayPosts() {
+        fetch('/posts/')
+            .then(response => response.json())
+            .then(data => {
+                const postsContainer = document.querySelector('.posts-section');
+                data.posts.forEach(post => {
+                    postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
+                });
+            })
+            .catch(error => console.error('Error loading posts:', error));
+    }
+
+    loadAndDisplayPosts(); // Call the function to load posts
+    });
+</script>
+
+
 {% endblock %}
