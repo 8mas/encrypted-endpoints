@@ -70,22 +70,31 @@
         document.addEventListener('DOMContentLoaded', function () {
             const createPostButton = document.getElementById('createPostButton');
             const createPostForm = document.getElementById('createPostForm');
+            const submitPostButton = document.getElementById('submitPost');
             const cancelPostButton = document.getElementById('cancelPost');
 
-            if (createPostButton) {
-                createPostButton.addEventListener('click', function () {
-                    createPostForm.style.display = 'block';
-                });
+            createPostButton.addEventListener('click', function () {
+                createPostForm.style.display = 'block';
+                createPostButton.style.display = 'none';
+            });
+
+            function hidePostFormAndShowButton() {
+                createPostForm.style.display = 'none';
+                createPostButton.style.display = 'block';
             }
+
+
 
             if (cancelPostButton) {
                 cancelPostButton.addEventListener('click', function () {
                     createPostForm.style.display = 'none';
+                    hidePostFormAndShowButton();
                 });
             }
 
             document.getElementById('submitPost').addEventListener('click', function (e) {
                 e.preventDefault();
+                hidePostFormAndShowButton();
                 const title = document.getElementById('postTitle').value;
                 const content = document.getElementById('postContent').value;
                 // Assuming you have a user variable in your context, otherwise adapt accordingly
