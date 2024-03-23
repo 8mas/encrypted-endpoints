@@ -1,112 +1,132 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block content %}
-<section class="welcome-section">
-    <h2>Welcome to the Simple FastAPI Blog!</h2>
-    <p>This is a simple blogging platform where you can register, create posts, and vote on posts.</p>
-</section>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encrypted Endpoints Demo</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
 
-<div class="auth-container">
-    {% if user %}
-    <div class="user-greeting">
-        <p>Welcome, {{ user.username }}! <a href="/logout/">Logout</a></p>
-    </div>
-    {% else %}
-    <div class="login-register-form">
-        <form action="/auth/" method="post">
-            <h3>Login/Register</h3>
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
+<body>
+    <header>
+        <h1>Encrypted Endpoints Demo</h1>
+        {% if user %}
+        <!-- Using a Unicode character as a placeholder for the logout icon -->
+        <i class="fas fa-sign-out-alt logout-icon" onclick="location.href='/logout/'"></i> {% endif %}
+    </header>
 
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
+    <main>
+        <section class="welcome-section">
+            <h2>Welcome to the Encrypted Endpoints Demo!</h2>
+            <p>Explore how to securely create, fetch, and vote on encrypted posts.</p>
+        </section>
 
-            <button type="submit">Submit</button>
-        </form>
-    </div>
-    {% endif %}
-</div>
+        <div class="auth-container">
+            {% if user %}
+            <div class="user-greeting">
+                <p>Welcome back, {{ user.username }}!</p>
+            </div>
+            {% else %}
+            <div class="login-register-form">
+                <form action="/auth/" method="post">
+                    <h3>Login/Register</h3>
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
 
-{% if user %}
-<div class="create-post-button">
-    <button id="createPostButton">Create Post</button>
-</div>
-<div id="createPostForm" style="display: none;">
-    <h2>Create a New Post</h2>
-    <label for="postTitle">Title:</label>
-    <input type="text" id="postTitle" name="title" required>
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
 
-    <label for="postContent">Content:</label>
-    <textarea id="postContent" name="content" required></textarea>
+                    <button type="submit">Submit</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
 
-    <button type="submit" id="submitPost">Post</button>
-    <button type="button" id="cancelPost">Cancel</button>
-</div>
-{% endif %}
+        {% if user %}
+        <div class="create-post-button">
+            <button id="createPostButton">Create Post</button>
+        </div>
+        <div id="createPostForm" style="display: none;">
+            <h2>Create a New Encrypted Post</h2>
+            <label for="postTitle">Title:</label>
+            <input type="text" id="postTitle" name="title" required>
 
-<section class="posts-section">
-    <!-- Posts will be inserted here by JavaScript -->
-</section>
+            <label for="postContent">Content:</label>
+            <textarea id="postContent" name="content" required></textarea>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const createPostButton = document.getElementById('createPostButton');
-        const createPostForm = document.getElementById('createPostForm');
-        const cancelPostButton = document.getElementById('cancelPost');
+            <button type="submit" id="submitPost">Post</button>
+            <button type="button" id="cancelPost" class="cancel-button">Cancel</button>
+        </div>
+        {% endif %}
 
-        if (createPostButton) {
-            createPostButton.addEventListener('click', function () {
-                createPostForm.style.display = 'block';
-            });
-        }
+        <section class="posts-section">
+            <!-- Posts will be inserted here by JavaScript -->
+        </section>
+    </main>
 
-        if (cancelPostButton) {
-            cancelPostButton.addEventListener('click', function () {
-                createPostForm.style.display = 'none';
-            });
-        }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const createPostButton = document.getElementById('createPostButton');
+            const createPostForm = document.getElementById('createPostForm');
+            const cancelPostButton = document.getElementById('cancelPost');
 
-        document.getElementById('submitPost').addEventListener('click', function (e) {
-            e.preventDefault();
-            const title = document.getElementById('postTitle').value;
-            const content = document.getElementById('postContent').value;
-            // Assuming you have a user variable in your context, otherwise adapt accordingly
-            const user = {{ user | tojson
-        }};
-
-    fetch('/posts/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title, content, author: user.username, votes: 0 }),
-    })
-        .then(response => response.json())
-        .then(post => {
-            const postsContainer = document.querySelector('.posts-section');
-            postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
-            document.getElementById('postTitle').value = '';
-            document.getElementById('postContent').value = '';
-            createPostForm.style.display = 'none';
-        })
-        .catch(error => console.error('Error:', error));
-    });
-
-    function loadAndDisplayPosts() {
-        fetch('/posts/')
-            .then(response => response.json())
-            .then(data => {
-                const postsContainer = document.querySelector('.posts-section');
-                data.posts.forEach(post => {
-                    postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
+            if (createPostButton) {
+                createPostButton.addEventListener('click', function () {
+                    createPostForm.style.display = 'block';
                 });
+            }
+
+            if (cancelPostButton) {
+                cancelPostButton.addEventListener('click', function () {
+                    createPostForm.style.display = 'none';
+                });
+            }
+
+            document.getElementById('submitPost').addEventListener('click', function (e) {
+                e.preventDefault();
+                const title = document.getElementById('postTitle').value;
+                const content = document.getElementById('postContent').value;
+                // Assuming you have a user variable in your context, otherwise adapt accordingly
+                const user = {{ user | tojson
+            }};
+
+        fetch('/posts/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ title, content, author: user.username, votes: 0 }),
+        })
+            .then(response => response.json())
+            .then(post => {
+                const postsContainer = document.querySelector('.posts-section');
+                postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
+                document.getElementById('postTitle').value = '';
+                document.getElementById('postContent').value = '';
+                createPostForm.style.display = 'none';
             })
-            .catch(error => console.error('Error loading posts:', error));
-    }
-
-    loadAndDisplayPosts(); // Call the function to load posts
+            .catch(error => console.error('Error:', error));
     });
-</script>
+
+        function loadAndDisplayPosts() {
+            fetch('/posts/')
+                .then(response => response.json())
+                .then(data => {
+                    const postsContainer = document.querySelector('.posts-section');
+                    data.posts.forEach(post => {
+                        postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
+                    });
+                })
+                .catch(error => console.error('Error loading posts:', error));
+        }
+
+        loadAndDisplayPosts(); // Call the function to load posts
+    });
+    </script>
 
 
-{% endblock %}
+</body>
+
+</html>

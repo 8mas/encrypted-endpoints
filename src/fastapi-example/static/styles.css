@@ -2,21 +2,34 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #FAFAFA;
-    color: #333;
+    background-color: #F7F7F7;
+    color: #444;
 }
 
 header {
-    background-color: #007bff;
-    color: #fff;
+    background-color: #005792;
+    color: #FFFFFF;
     padding: 20px;
     text-align: center;
+    position: relative;
+    /* For absolute positioning of the logout button */
+}
+
+.logout-icon {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 24px;
+    /* Adjust size as needed */
+    color: #FFFFFF;
+    /* Icon color */
+    cursor: pointer;
 }
 
 main {
     margin: 20px;
     padding: 20px;
-    background: #FFF;
+    background: #FFFFFF;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -28,19 +41,21 @@ main {
 }
 
 .post {
-    background-color: #fff;
+    background-color: #FFFFFF;
     margin-bottom: 10px;
     padding: 15px;
-    border-left: 4px solid #007bff;
+    border-radius: 8px;
+    border-left: 4px solid #005792;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .login-register-form,
 .user-greeting {
     padding: 15px;
-    background-color: #f2f2f2;
+    background-color: #E8EEF1;
     border-radius: 8px;
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
 }
 
 label,
@@ -54,14 +69,15 @@ button {
 
 input,
 textarea {
-    padding: 8px 0;
-    border: 1px solid #CCC;
+    padding: 8px;
+    border: 1px solid #CCCCCC;
     border-radius: 4px;
+    background: #FFFFFF;
 }
 
 button {
     padding: 10px 15px;
-    background-color: #28a745;
+    background-color: #007bff;
     color: white;
     border: none;
     border-radius: 4px;
@@ -69,5 +85,9 @@ button {
 }
 
 button:hover {
-    background-color: #218838;
+    background-color: #0056b3;
+}
+
+.cancel-button {
+    background-color: #dc3545;
 }
