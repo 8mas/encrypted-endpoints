@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="welcome-section">
+    <h2>Welcome to the Simple FastAPI Blog!</h2>
+    <p>This is a simple blogging platform where you can register, create posts, and vote on posts.</p>
+</section>
+
+<div class="auth-container">
+    {% if user %}
+    <div class="user-greeting">
+        <p>Welcome, {{ user.username }}! <a href="/logout/">Logout</a></p>
+    </div>
+    {% else %}
+    <div class="login-register-form">
+        <form action="/auth/" method="post">
+            <h3>Login/Register</h3>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<section class="posts-section">
+    {% for post in posts %}
+    <div class="post">
+        <h3>{{ post.title }}</h3>
+        <p>{{ post.content }}</p>
+        <p>Author: {{ post.author }}</p>
+        <p>Votes: {{ post.votes}} </p>
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}
