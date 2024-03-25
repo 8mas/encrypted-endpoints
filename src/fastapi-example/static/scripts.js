@@ -28,8 +28,8 @@ function loadAndDisplayPosts() {
 
 function submitVote(postId, voteValue) {
     const payload = {
-        postId: postId,
-        vote: voteValue
+        post_id: postId,
+        user_vote: voteValue
     };
 
     fetch('/vote', {
@@ -43,7 +43,7 @@ function submitVote(postId, voteValue) {
         .then(data => {
             if (data.success) {
                 const postElement = document.querySelector(`.post[data-post-id="${postId}"] .vote-count`);
-                postElement.textContent = data.newVoteTotal;
+                postElement.textContent = data;
             } else {
                 alert(data.message);
             }
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ title, content, author: 'AuthorName', votes: 0 }),
+                body: JSON.stringify({ title, content, votes: 0 }),
             })
                 .then(response => response.json())
                 .then(post => {
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.target.classList.contains('vote-button')) {
             const postId = e.target.closest('.post').dataset.postId;
             const voteValue = e.target.dataset.vote;
-            submitVote(postId, voteValue);
+            submitVote(postId, parseInt(voteValue));
         }
     });
 });
