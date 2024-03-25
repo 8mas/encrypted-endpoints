@@ -32,23 +32,34 @@ function submitVote(postId, voteValue) {
         user_vote: voteValue
     };
 
-    fetch('/vote', {
+    fetch('/vote/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const postElement = document.querySelector(`.post[data-post-id="${postId}"] .vote-count`);
-                postElement.textContent = data;
+        .then(response => {
+            if (response.ok) {
+                return response.json();
             } else {
-                alert(data.message);
+                return response.text().then(errorMessage => {
+                    throw new Error('Response was not ok. ' + errorMessage);
+                });
             }
         })
-        .catch(error => console.error('Error:', error));
+        .then(newScore => {
+            const postElement = document.querySelector(`.post[data-post-id="${postId}"] .vote-count`);
+            if (postElement) {
+                postElement.textContent = newScore;
+            } else {
+                console.error('Post element not found.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error);
+        });
 }
 
 
