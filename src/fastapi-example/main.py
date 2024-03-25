@@ -1,14 +1,13 @@
+from html import escape
+from pprint import pprint
 from typing import Annotated, Optional
+from uuid import uuid4
 
-from fastapi import HTTPException, Cookie, Depends, FastAPI, Form, Request, status
+from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
-from uuid import uuid4
-from pprint import pprint
-from html import escape
-
 
 app = FastAPI()
 
@@ -77,7 +76,7 @@ def get_current_user(
 
 @app.get("/")
 def get_start_page(request: Request, user: User = Depends(get_current_user)):
-    current_user = user.model_dump_json() if user else None
+    current_user = user.model_dump() if user else None
     return templates.TemplateResponse(
         "start_page.html", {"request": request, "user": current_user, "posts": list(posts.values())}
     )
@@ -146,3 +145,11 @@ def vote_post(vote: Vote, user: User = Depends(get_current_user)) -> int:
 
     post.votes += vote.user_vote
     return post.votes
+
+
+@app.get("/logout/")
+def logout():
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response.delete_cookie(key="username")
+    response.delete_cookie(key="password")
+    return response
