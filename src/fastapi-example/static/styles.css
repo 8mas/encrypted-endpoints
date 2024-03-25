@@ -12,7 +12,6 @@ header {
     padding: 20px;
     text-align: center;
     position: relative;
-    /* For absolute positioning of the logout button */
 }
 
 .logout-icon {
@@ -20,9 +19,7 @@ header {
     right: 20px;
     top: 20px;
     font-size: 24px;
-    /* Adjust size as needed */
     color: #FFFFFF;
-    /* Icon color */
     cursor: pointer;
 }
 
@@ -47,6 +44,32 @@ main {
     border-radius: 8px;
     border-left: 4px solid #005792;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.vote-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.vote-button {
+    cursor: pointer;
+    font-size: 24px;
+    margin: 0 10px;
+}
+
+.vote-button.upvote {
+    color: green;
+}
+
+.vote-button.downvote {
+    color: red;
+}
+
+.vote-count {
+    margin: 0 15px;
 }
 
 .login-register-form,
