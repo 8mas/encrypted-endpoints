@@ -4,59 +4,75 @@ document.addEventListener('DOMContentLoaded', function () {
     const submitPostButton = document.getElementById('submitPost');
     const cancelPostButton = document.getElementById('cancelPost');
 
-    createPostButton.addEventListener('click', function () {
-        createPostForm.style.display = 'block';
-        createPostButton.style.display = 'none';
-    });
-
-    function hidePostFormAndShowButton() {
-        createPostForm.style.display = 'none';
-        createPostButton.style.display = 'block';
+    // Function to toggle the visibility of the post creation form
+    function togglePostFormDisplay(display = 'none') {
+        createPostForm.style.display = display;
+        createPostButton.style.display = display === 'none' ? 'block' : 'none';
     }
 
-    if (cancelPostButton) {
-        cancelPostButton.addEventListener('click', function () {
-            createPostForm.style.display = 'none';
-            hidePostFormAndShowButton();
+    // Show the form to create a post when the button is clicked
+    if (createPostButton) {
+        createPostButton.addEventListener('click', function () {
+            togglePostFormDisplay('block');
         });
     }
 
-    document.getElementById('submitPost').addEventListener('click', function (e) {
-        e.preventDefault();
-        hidePostFormAndShowButton();
-        const title = document.getElementById('postTitle').value;
-        const content = document.getElementById('postContent').value;
-        const user = JSON.parse(document.getElementById('userData').getAttribute('data-user'));
+    // Hide the form when the cancel button is clicked
+    if (cancelPostButton) {
+        cancelPostButton.addEventListener('click', function () {
+            togglePostFormDisplay('none');
+        });
+    }
 
-        fetch('/posts/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ title, content, author: user.username, votes: 0 }),
-        })
-            .then(response => response.json())
-            .then(post => {
-                const postsContainer = document.querySelector('.posts-section');
-                postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
-                document.getElementById('postTitle').value = '';
-                document.getElementById('postContent').value = '';
-                createPostForm.style.display = 'none';
+    // Handling the submission of a new post
+    submitPostButton.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        const title = document.getElementById('postTitle').value.trim();
+        const content = document.getElementById('postContent').value.trim();
+
+        if (title && content) {
+            fetch('/posts/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, content, author: 'AuthorName', votes: 0 }),
             })
-            .catch(error => console.error('Error:', error));
+                .then(response => response.json())
+                .then(post => {
+                    const postsContainer = document.querySelector('.posts-section');
+                    postsContainer.insertAdjacentHTML('afterbegin', generatePostHTML(post));
+                    document.getElementById('postTitle').value = '';
+                    document.getElementById('postContent').value = '';
+                    togglePostFormDisplay('none');
+                })
+                .catch(error => console.error('Error:', error));
+        }
     });
 
+    // Generate HTML for a post
+    function generatePostHTML(post) {
+        return `<div class="post" data-post-id="${post.id}">
+                    <h3>${post.title}</h3>
+                    <p>${post.content}</p>
+                    <p>Author: ${post.author}</p>
+                    <p>Votes: ${post.votes}</p>
+                </div>`;
+    }
+
+    // Load and display posts on page load
     function loadAndDisplayPosts() {
         fetch('/posts/')
             .then(response => response.json())
             .then(data => {
                 const postsContainer = document.querySelector('.posts-section');
                 data.posts.forEach(post => {
-                    postsContainer.insertAdjacentHTML('afterbegin', `<div class="post"><h3>${post.title}</h3><p>${post.content}</p><p>Author: ${post.author}</p><p>Votes: ${post.votes}</p></div>`);
+                    postsContainer.insertAdjacentHTML('afterbegin', generatePostHTML(post));
                 });
             })
             .catch(error => console.error('Error loading posts:', error));
     }
 
-    loadAndDisplayPosts(); // Call the function to load posts
+    loadAndDisplayPosts();
 });

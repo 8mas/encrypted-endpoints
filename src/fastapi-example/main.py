@@ -4,7 +4,11 @@ from fastapi import HTTPException, Cookie, Depends, FastAPI, Form, Request, stat
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
+from uuid import uuid4
+from pprint import pprint
+from html import escape
+
 
 app = FastAPI()
 
@@ -19,10 +23,16 @@ votes = set()
 
 
 class Post(BaseModel):
-    author: str
+    id: Optional[str] = None
     title: str
     content: str
+    author: Optional[str] = None
     votes: int = 0
+
+    @field_validator("title", "content", "author")
+    @classmethod
+    def escape_html(cls, value):
+        return escape(value)
 
 
 class Vote(BaseModel):
@@ -33,6 +43,7 @@ class Vote(BaseModel):
 
 posts.append(
     Post(
+        id=str(uuid4()),
         author="Reviewer1",
         title="This seems useful",
         content="This looks like a really useful example of your approach",
@@ -40,7 +51,13 @@ posts.append(
     )
 )
 posts.append(
-    Post(author="Reviewer2", title="Rejected", content="I'm sorry, but I don't think this is a good approach", votes=-2)
+    Post(
+        id=str(uuid4()),
+        author="Reviewer2",
+        title="Rejected",
+        content="I'm sorry, but I don't think this is a good approach",
+        votes=-2,
+    )
 )
 
 
@@ -75,6 +92,7 @@ def auth(username: str = Form(...), password: str = Form(...)) -> RedirectRespon
 def get_posts(user: Optional[dict] = Depends(get_current_user)):
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    pprint(posts)
     return {"posts": posts}
 
 
@@ -82,5 +100,11 @@ def get_posts(user: Optional[dict] = Depends(get_current_user)):
 def create_post(post: Post, user: Optional[dict] = Depends(get_current_user)):
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    posts.append(post)
+    pprint(post)
+
+    post.id = str(uuid4())
+    post.author = user["username"]
+    post.votes = 0
+    posts.append(post.model_dump())
+    pprint(post)
     return post
