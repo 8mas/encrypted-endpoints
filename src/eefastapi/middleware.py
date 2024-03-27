@@ -87,19 +87,19 @@ class EncryptedEndpointsMiddleware:
         return Request(scope)
 
 
-class TestRoute(APIRoute):
+class EncryptedRoute(APIRoute):
     def get_route_handler(self) -> Callable:
         original_route_handler = super().get_route_handler()
 
-        async def custom_route_handler(request: Request) -> Response:
-            print("Custom route handler")
+        async def encrypted_route_handler(request: Request) -> Response:
+            print("Encrypted Route Handler")
             return await original_route_handler(request)
 
-        return custom_route_handler
+        return encrypted_route_handler
 
 
 app = FastAPI()
-myrouter = APIRouter(route_class=TestRoute)
+encrypted_endpoint = APIRouter(route_class=EncryptedRoute)
 
 app.add_middleware(middleware_class=EncryptedEndpointsMiddleware, key=b"secret_key")
 
@@ -107,17 +107,22 @@ templates = Jinja2Templates(directory="templates")
 templates.env.globals["encrypt_value"] = EncryptedEndpointsMiddleware.encrypt_value
 
 
-@myrouter.get("/some-route")
-async def some_route(request: Request):
-    return {"message": "SPECIFIC"}
+@encrypted_endpoint.get("/encrypted-route")
+async def encrypted_route(request: Request):
+    return {"message": "Encrypted-route"}
 
 
-app.include_router(router=myrouter)
-
-
-@app.get("/")
+@encrypted_endpoint.get("/")
 async def read_root(request: Request):
     return templates.TemplateResponse("test.html", {"request": request})
+
+
+app.include_router(router=encrypted_endpoint)
+
+
+@app.get("/clear-route")
+async def clear_route(request: Request):
+    return {"message": "clear-route"}
 
 
 @app.get("/{full_path:path}")
