@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from fastapi import APIRouter, Depends, FastAPI, Header, Request, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.routing import APIRoute
+from starlette.templating import _TemplateResponse
 
 
 class EncryptedEndpointsMiddleware:
@@ -16,19 +17,22 @@ class EncryptedEndpointsMiddleware:
         self,
         app,
         key: bytes,
-        exclude_paths: list[str] = None,
-        extract_identifier: Callable[[Request], bytes] = None,
+        identifier_extractor: Callable[[Request], bytes] = None,
+        filter_route: Callable[[str], bool] = None,
     ):
         self.app = app
         EncryptedEndpointsMiddleware.key = key
-        EncryptedEndpointsMiddleware.extract_identifier = (
-            extract_identifier or EncryptedEndpointsMiddleware.default_extract_identifier
+        EncryptedEndpointsMiddleware.identifier_extractor = (
+            identifier_extractor or EncryptedEndpointsMiddleware.default_extract_identifier
         )
+        EncryptedEndpointsMiddleware.filter_route = filter_route if filter_route else lambda x: False
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         if scope["path"] == "/favicon.ico":
+            return await self.app(scope, receive, send)
+        if EncryptedEndpointsMiddleware.filter_route(scope["path"]):
             return await self.app(scope, receive, send)
 
         new_scope = scope.copy()
@@ -65,7 +69,7 @@ class EncryptedEndpointsMiddleware:
 
     @classmethod
     def _get_encryptor(cls, request: Request) -> AESSIV:
-        identifier = cls.extract_identifier(request)
+        identifier = cls.identifier_extractor(request)
         derived_key = cls._derive_key(identifier=identifier)
         aessiv = AESSIV(derived_key)
         return aessiv
@@ -73,7 +77,7 @@ class EncryptedEndpointsMiddleware:
     @classmethod
     def _derive_key(cls, identifier: bytes) -> bytes:
         kdf = HKDF(hashes.SHA256(), 32, None, b"encrypted-endpoints-fastapi")
-        return kdf.derive(EncryptedEndpointsMiddleware.key + identifier)
+        return kdf.derive(cls.key + identifier)
 
     @staticmethod
     def default_extract_identifier(request: Request) -> bytes:
@@ -98,10 +102,20 @@ class EncryptedRoute(APIRoute):
         return encrypted_route_handler
 
 
-app = FastAPI()
-encrypted_endpoint = APIRouter(route_class=EncryptedRoute)
+"""
+# Todo! Wait for FastAPI to support middleware on a per-router basis to have better granularity for including/excluding routes
+https://github.com/tiangolo/fastapi/pull/11010/ (not our PR)
 
-app.add_middleware(middleware_class=EncryptedEndpointsMiddleware, key=b"secret_key")
+## Filtering routes
+Till then filtering must be done in the middleware itself by giving a filter function to the middleware.
+"""
+
+app = FastAPI()
+app.add_middleware(
+    middleware_class=EncryptedEndpointsMiddleware, key=b"secret_key"
+)  # Set middleware global. This will encrypt all routes. See above for more granular control.
+
+encrypted_endpoint = APIRouter(route_class=EncryptedRoute)
 
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["encrypt_value"] = EncryptedEndpointsMiddleware.encrypt_value
@@ -117,6 +131,7 @@ async def read_root(request: Request):
     return templates.TemplateResponse("test.html", {"request": request})
 
 
+# Since we have a catch-all route, we need to add the encrypted route first
 app.include_router(router=encrypted_endpoint)
 
 
