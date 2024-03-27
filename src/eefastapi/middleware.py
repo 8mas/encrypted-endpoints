@@ -6,8 +6,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from fastapi import Depends, FastAPI, Header, Request
+from fastapi import APIRouter, Depends, FastAPI, Header, Request, Response
 from fastapi.templating import Jinja2Templates
+from fastapi.routing import APIRoute
 
 
 class EncryptedEndpointsMiddleware:
@@ -23,10 +24,11 @@ class EncryptedEndpointsMiddleware:
         EncryptedEndpointsMiddleware.extract_identifier = (
             extract_identifier or EncryptedEndpointsMiddleware.default_extract_identifier
         )
-        print("CustomMiddleware initialized")
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        if scope["path"] == "/favicon.ico":
             return await self.app(scope, receive, send)
 
         new_scope = scope.copy()
@@ -85,13 +87,32 @@ class EncryptedEndpointsMiddleware:
         return Request(scope)
 
 
+class TestRoute(APIRoute):
+    def get_route_handler(self) -> Callable:
+        original_route_handler = super().get_route_handler()
+
+        async def custom_route_handler(request: Request) -> Response:
+            print("Custom route handler")
+            return await original_route_handler(request)
+
+        return custom_route_handler
+
+
 app = FastAPI()
+myrouter = APIRouter(route_class=TestRoute)
 
-
-app.add_middleware(EncryptedEndpointsMiddleware, key=b"secret_key")
+app.add_middleware(middleware_class=EncryptedEndpointsMiddleware, key=b"secret_key")
 
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["encrypt_value"] = EncryptedEndpointsMiddleware.encrypt_value
+
+
+@myrouter.get("/some-route")
+async def some_route(request: Request):
+    return {"message": "SPECIFIC"}
+
+
+app.include_router(router=myrouter)
 
 
 @app.get("/")
@@ -99,11 +120,6 @@ async def read_root(request: Request):
     return templates.TemplateResponse("test.html", {"request": request})
 
 
-@app.get("/some-route")
-async def some_route(request: Request):
-    return {"message": "This is some route"}
-
-
 @app.get("/{full_path:path}")
 async def catch_all(request: Request, full_path: str):
-    return {"message": f"Caught all with path: {full_path}"}
+    return {"message": f"GENERIC CATCH: {full_path}"}
