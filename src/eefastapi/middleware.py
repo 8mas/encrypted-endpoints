@@ -1,18 +1,16 @@
 import base64
+import traceback
 from typing import Callable
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from fastapi import FastAPI, Request, Depends, Header
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.responses import Response
+from fastapi import Depends, FastAPI, Header, Request
 from fastapi.templating import Jinja2Templates
-import traceback
 
 
-class EncryptedEndpointsMiddleware(BaseHTTPMiddleware):
+class EncryptedEndpointsMiddleware:
     def __init__(
         self,
         app,
@@ -20,27 +18,29 @@ class EncryptedEndpointsMiddleware(BaseHTTPMiddleware):
         exclude_paths: list[str] = None,
         extract_identifier: Callable[[Request], bytes] = None,
     ):
-        super().__init__(app)
+        self.app = app
         EncryptedEndpointsMiddleware.key = key
         EncryptedEndpointsMiddleware.extract_identifier = (
             extract_identifier or EncryptedEndpointsMiddleware.default_extract_identifier
         )
         print("CustomMiddleware initialized")
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        new_scope = scope.copy()
+        request = Request(new_scope)
+
         try:
             path, query = self.decrypt_request(request)
-
-            # Modify request path and query string based on decrypted data
-            scope = request.scope.copy()
-            scope["path"] = path or request.url.path
-            scope["query_string"] = query.encode() if query else request.url.query.encode()
-            request = Request(scope)
+            new_scope["path"] = path or request.url.path
+            new_scope["raw_path"] = new_scope["path"]
+            new_scope["query_string"] = query.encode() if query else request.url.query.encode()
         except Exception as e:
             request = self.on_error(request, e)
 
-        response = await call_next(request)
-        return response
+        return await self.app(new_scope, receive, send)
 
     @classmethod
     def decrypt_request(cls, request: Request) -> tuple[str, str]:
@@ -86,6 +86,8 @@ class EncryptedEndpointsMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI()
+
+
 app.add_middleware(EncryptedEndpointsMiddleware, key=b"secret_key")
 
 templates = Jinja2Templates(directory="templates")
@@ -99,11 +101,9 @@ async def read_root(request: Request):
 
 @app.get("/some-route")
 async def some_route(request: Request):
-    print(request.url.path)
     return {"message": "This is some route"}
 
 
 @app.get("/{full_path:path}")
 async def catch_all(request: Request, full_path: str):
-    print(request.url.path)
     return {"message": f"Caught all with path: {full_path}"}
