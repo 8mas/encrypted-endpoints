@@ -15,6 +15,18 @@
             ],
             "jinja": true,
             "cwd": "${workspaceFolder}/src/fastapi-example",
+        },
+        {
+            "name": "FastAPI Middleware",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "middleware:app",
+                "--reload"
+            ],
+            "jinja": true,
+            "cwd": "${workspaceFolder}/src/eefastapi",
         }
     ]
 }

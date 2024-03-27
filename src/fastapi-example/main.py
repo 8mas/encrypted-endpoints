@@ -8,8 +8,12 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
+from src.eefastapi.middleware import EncryptedEndpointsMiddleware
+import os
 
 app = FastAPI()
+key = os.urandom(32)
+app.add_middleware(EncryptedEndpointsMiddleware, key=key)
 
 
 templates = Jinja2Templates(directory="templates")
@@ -49,7 +53,7 @@ d1 = Post(
     id=str(uuid4()),
     author="Reviewer1",
     title="This seems useful",
-    content="This looks like a really useful example of your approach",
+    content="This looks like a really useful example of yleiour approach",
     votes=1,
 )
 
