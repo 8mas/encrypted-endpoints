@@ -22,7 +22,7 @@
             "request": "launch",
             "module": "uvicorn",
             "args": [
-                "middleware:app",
+                "example:app",
                 "--reload"
             ],
             "jinja": true,

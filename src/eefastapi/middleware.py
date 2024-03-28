@@ -1,15 +1,14 @@
 import base64
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Callable
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from fastapi import APIRouter, FastAPI, Request, Response
+from fastapi import Request, Response
 from fastapi.routing import APIRoute
-from fastapi.templating import Jinja2Templates
 
 
 class SegmentType(Enum):
@@ -28,33 +27,37 @@ class EncryptedURL:
     SHARED_KEY_HEADER = "!"
 
     def __init__(self, full_path: str, DELIMITER: str = "~") -> None:
-        self.segments = []
         self.DELIMITER = DELIMITER
+        self.segments = self._parse_path(full_path)
 
-        if full_path[0] == "/":
+    def _parse_path(self, full_path: str):
+        if full_path and full_path[0] == "/":
             full_path = full_path[1:]
 
+        segments = []
         # todo think about queries
         index = 0
         while index < len(full_path):
             if full_path[index] == self.DELIMITER:
                 next_delimiter = full_path.find(self.DELIMITER, index + 1)
                 if next_delimiter != -1:
-                    self.segments.append(Segment(full_path[index + 1 : next_delimiter], SegmentType.ENCRYPTED))
+                    segments.append(Segment(full_path[index + 1 : next_delimiter], SegmentType.ENCRYPTED))
                     index = next_delimiter + 1
                 else:
                     break
             else:
                 next_delimiter_or_end = full_path.find(self.DELIMITER, index)
                 if next_delimiter_or_end != -1:
-                    self.segments.append(Segment(full_path[index:next_delimiter_or_end], SegmentType.PLAIN))
+                    segments.append(Segment(full_path[index:next_delimiter_or_end], SegmentType.PLAIN))
                     index = next_delimiter_or_end
                 else:
-                    self.segments.append(Segment(full_path[index:], SegmentType.PLAIN))
+                    segments.append(Segment(full_path[index:], SegmentType.PLAIN))
                     index = len(full_path)
-        if self.segments and self.segments[-1].value.startswith(self.SHARED_KEY_HEADER):
-            self.segments[-1].value = self.segments[-1].value[1:]
-            self.segments[-1].segment_type = SegmentType.SHARED_KEY
+        if segments and segments[-1].value.startswith(self.SHARED_KEY_HEADER):
+            segments[-1].value = segments[-1].value[1:]
+            segments[-1].segment_type = SegmentType.SHARED_KEY
+
+        return segments
 
     def get_full_url(self, shared_segment=True) -> str:
         url = ""
@@ -99,7 +102,6 @@ class EncryptedURL:
 
         encryptor = self._get_encryptor(main_key)
         url = self.get_full_url()
-        print(url)
         shareable_url = encryptor.encrypt(identifier, [url.encode()])
         shareable_url_base64 = base64.urlsafe_b64encode(shareable_url).decode()
         return f"{url}{self.DELIMITER}{self.SHARED_KEY_HEADER}{shareable_url_base64}{self.DELIMITER}"
@@ -109,18 +111,15 @@ class EncryptedURL:
         shared_identifier_bytes = base64.urlsafe_b64decode(shared_identifier.encode())
         aessiv = self._get_encryptor(main_key)
         aad = self.get_full_url(shared_segment=False).encode()
-        print(aad)
         return aessiv.decrypt(shared_identifier_bytes, [aad])
 
     @staticmethod
-    def encrypt_value(
-        main_key: bytes, value: bytes, identifier: bytes, DELIMITER="~"
-    ) -> str:  # todo maybe make not static
+    def encrypt_value(main_key: bytes, value: bytes, identifier: bytes, delimiter="~") -> str:
         derived_key = EncryptedURL._derive_key(main_key, identifier)
         encryptor = EncryptedURL._get_encryptor(derived_key)
         encrypted_value = encryptor.encrypt(value, None)
         encrypted_value_base64 = base64.urlsafe_b64encode(encrypted_value).decode()
-        return f"{DELIMITER}{encrypted_value_base64}{DELIMITER}"
+        return f"{delimiter}{encrypted_value_base64}{delimiter}"
 
     @staticmethod
     def _get_encryptor(derived_key: bytes) -> AESSIV:
@@ -183,7 +182,7 @@ class EncryptedEndpointsMiddleware:
 
             path = "".join([segment.value for segment in path_segments])
             new_scope["path"] = path or request.url.path
-            new_scope["raw_path"] = new_scope["path"]
+            new_scope["raw_path"] = new_scope["path"].encode()
         except Exception as e:
             request = self.on_error(request, e)
 
@@ -226,43 +225,3 @@ https://github.com/tiangolo/fastapi/pull/11010/ (not our PR)
 ## Filtering routes
 Till then filtering must be done in the middleware itself by giving a filter function to the middleware.
 """
-
-templates = Jinja2Templates(directory="templates")
-app = FastAPI()
-
-app.add_middleware(
-    middleware_class=EncryptedEndpointsMiddleware,
-    main_key=b"0" * 64,
-    templates=templates,
-)  # Set middleware global. This will encrypt all routes. See above for more granular control.
-
-encrypted_endpoint = APIRouter(route_class=EncryptedRoute)
-
-
-@encrypted_endpoint.get("/encrypted-route")
-async def encrypted_route(request: Request):
-    return {"message": "Encrypted-route"}
-
-
-@encrypted_endpoint.get("/")
-async def read_root(request: Request):
-    return templates.TemplateResponse("test.html", {"request": request})
-
-
-@encrypted_endpoint.get("/encrypted/route/but/only/partial")
-async def partial_encrypted_route(request: Request):
-    return {"message": "partial encrypted route"}
-
-
-# Since we have a catch-all route, we need to add the encrypted route first
-app.include_router(router=encrypted_endpoint)
-
-
-@app.get("/clear-route")
-async def clear_route(request: Request):
-    return {"message": "clear-route"}
-
-
-@app.get("/{full_path:path}")
-async def catch_all(request: Request, full_path: str):
-    return {"message": f"GENERIC CATCH: {full_path}"}
