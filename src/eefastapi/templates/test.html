@@ -6,11 +6,14 @@
 </head>
 
 <body>
-    <p>Encrypted Endpoint: <a href="{{ encrypt_value('/encrypted-route', request)}}">/encrypted-route</a></p>
     <p>Encrypted Endpoint: <a href="/clear-route">/clear-route</a></p>
     <p>Encrypted Endpoint: <a href="/some-route">/some-route</a></p>
+    <p>Encrypted Endpoint: <a href="{{ encrypt_value('/encrypted-route', request)}}">/encrypted-route</a></p>
     <p>Encrypted Endpoint: <a
             href="{{ encrypt_value('/accident-encrypted-route', request)}}">/accident-encrypted-route</a></p>
+    <p>Encrypted Endpoint: <a
+            href="{{ encrypt_value('/encrypted', request)}}/route/but/only{{ encrypt_value('/partial', request)}}">/encrypted/route/but/only/partial</a>
+    </p>
 </body>
 
 </html>
