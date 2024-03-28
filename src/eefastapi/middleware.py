@@ -12,16 +12,6 @@ from fastapi.routing import APIRoute
 from fastapi.templating import Jinja2Templates
 
 
-def _get_encryptor(derived_key: bytes) -> AESSIV:
-    aessiv = AESSIV(derived_key)
-    return aessiv
-
-
-def _derive_key(main_key: bytes, identifier: bytes) -> bytes:
-    kdf = HKDF(hashes.SHA256(), 32, None, b"encrypted-endpoints-fastapi")
-    return kdf.derive(main_key + identifier)
-
-
 class SegmentType(Enum):
     PLAIN = 1
     ENCRYPTED = 2
@@ -34,45 +24,61 @@ class Segment:
     segment_type: SegmentType
 
 
-@dataclass(init=False)
 class EncryptedURL:
-    segments: list[Segment] = field(default_factory=list)
+    SHARED_KEY_HEADER = "!"
 
     def __init__(self, full_path: str, DELIMITER: str = "~") -> None:
         self.segments = []
         self.DELIMITER = DELIMITER
 
-        path = full_path[1:]  # Remove leading /
+        if full_path[0] == "/":
+            full_path = full_path[1:]
+
         # todo think about queries
         index = 0
-        while index < len(path):
-            if path[index] == self.DELIMITER:
-                next_tilde = path.find(self.DELIMITER, index + 1)
-                if next_tilde != -1:
-                    self.segments.append(Segment(path[index + 1 : next_tilde], SegmentType.ENCRYPTED))
-                    index = next_tilde + 1
+        while index < len(full_path):
+            if full_path[index] == self.DELIMITER:
+                next_delimiter = full_path.find(self.DELIMITER, index + 1)
+                if next_delimiter != -1:
+                    self.segments.append(Segment(full_path[index + 1 : next_delimiter], SegmentType.ENCRYPTED))
+                    index = next_delimiter + 1
                 else:
                     break
             else:
-                next_tilde_or_end = path.find(self.DELIMITER, index)
-                if next_tilde_or_end != -1:
-                    self.segments.append(Segment(path[index:next_tilde_or_end], SegmentType.PLAIN))
-                    index = next_tilde_or_end
+                next_delimiter_or_end = full_path.find(self.DELIMITER, index)
+                if next_delimiter_or_end != -1:
+                    self.segments.append(Segment(full_path[index:next_delimiter_or_end], SegmentType.PLAIN))
+                    index = next_delimiter_or_end
                 else:
-                    self.segments.append(Segment(path[index:], SegmentType.PLAIN))
-                    index = len(path)
-        if self.segments and self.segments[-1].value.startswith("!"):
+                    self.segments.append(Segment(full_path[index:], SegmentType.PLAIN))
+                    index = len(full_path)
+        if self.segments and self.segments[-1].value.startswith(self.SHARED_KEY_HEADER):
             self.segments[-1].value = self.segments[-1].value[1:]
             self.segments[-1].segment_type = SegmentType.SHARED_KEY
+
+    def get_full_url(self, shared_segment=True) -> str:
+        url = ""
+        for segment in self.segments:
+            if segment.segment_type == SegmentType.ENCRYPTED:
+                url += f"{self.DELIMITER}{segment.value}{self.DELIMITER}"
+            elif segment.segment_type == SegmentType.PLAIN:
+                url += segment.value
+            elif segment.segment_type == SegmentType.SHARED_KEY and shared_segment:
+                url += f"{self.DELIMITER}{self.SHARED_KEY_HEADER}{segment.value}{self.DELIMITER}"
+        return url
 
     def is_shared_url(self):
         return self.segments and self.segments[-1].segment_type == SegmentType.SHARED_KEY
 
     def decrypt_url(self, main_key: bytes, identifier: bytes):
-        derived_key = _derive_key(main_key, identifier)
-        aessiv = _get_encryptor(derived_key)
         if not self.segments:
             return []
+
+        if self.is_shared_url():
+            identifier = self._decrypt_shared_identifier(main_key)
+
+        derived_key = self._derive_key(main_key, identifier)
+        aessiv = self._get_encryptor(derived_key)
 
         decrypted_segments: list[Segment] = []
         for segment in self.segments:
@@ -80,37 +86,53 @@ class EncryptedURL:
                 encrypted_segment = base64.urlsafe_b64decode(segment.value.encode())
                 decrypted_segment = aessiv.decrypt(encrypted_segment, None).decode()
                 decrypted_segments.append(Segment(decrypted_segment, SegmentType.ENCRYPTED))
-            else:
+            elif segment.segment_type == SegmentType.PLAIN:
                 decrypted_segments.append(segment)
 
         return decrypted_segments  # todo really segements or just one string?
 
+    def get_shareable_url(self, main_key: bytes, identifier: bytes) -> str:
+        if not self.segments:
+            return ""
+        if self.is_shared_url():
+            return self.get_full_url()
+
+        encryptor = self._get_encryptor(main_key)
+        url = self.get_full_url()
+        print(url)
+        shareable_url = encryptor.encrypt(identifier, [url.encode()])
+        shareable_url_base64 = base64.urlsafe_b64encode(shareable_url).decode()
+        return f"{url}{self.DELIMITER}{self.SHARED_KEY_HEADER}{shareable_url_base64}{self.DELIMITER}"
+
+    def _decrypt_shared_identifier(self, main_key: bytes) -> bytes:
+        shared_identifier = self.segments[-1].value
+        shared_identifier_bytes = base64.urlsafe_b64decode(shared_identifier.encode())
+        aessiv = self._get_encryptor(main_key)
+        aad = self.get_full_url(shared_segment=False).encode()
+        print(aad)
+        return aessiv.decrypt(shared_identifier_bytes, [aad])
+
     @staticmethod
-    def encrypt_value(main_key: bytes, value: bytes, identifier: bytes, DELIMITER="~") -> str:
-        derived_key = _derive_key(main_key, identifier)
-        encryptor = _get_encryptor(derived_key)
+    def encrypt_value(
+        main_key: bytes, value: bytes, identifier: bytes, DELIMITER="~"
+    ) -> str:  # todo maybe make not static
+        derived_key = EncryptedURL._derive_key(main_key, identifier)
+        encryptor = EncryptedURL._get_encryptor(derived_key)
         encrypted_value = encryptor.encrypt(value, None)
         encrypted_value_base64 = base64.urlsafe_b64encode(encrypted_value).decode()
         return f"{DELIMITER}{encrypted_value_base64}{DELIMITER}"
 
-    def make_url_shareable(self, url: str, request: Request) -> str:
-        """
-        [encrypt URL]__AE(key, authenticated data)
+    @staticmethod
+    def _get_encryptor(derived_key: bytes) -> AESSIV:
+        aessiv = AESSIV(derived_key)
+        return aessiv
 
-        """
-        pass
-
-    def decrypt_url_identifier(self, encrypted_url, main_key: bytes):
-        if not encrypted_url.is_shared_url():
-            return None
-
-        path_aad = "".join([segment.value for segment in encrypted_url.segments[:-1]])  # Except the last segment (key)
-        decryptor = AESSIV(main_key)
-        identifier = decryptor.decrypt(encrypted_url.segments[-1].value.encode(), path_aad.encode())
+    @staticmethod
+    def _derive_key(main_key: bytes, identifier: bytes) -> bytes:
+        kdf = HKDF(hashes.SHA256(), 32, None, b"encrypted-endpoints-fastapi")
+        return kdf.derive(main_key + identifier)
 
 
-# TODO refactor all crypto operations to EncryptedULR class
-# TODO use functools and partial to create a function for jinja2
 # TODO support for link sharing & Session ressumption
 # TODO support for query parameters
 # TODO support for javascript
@@ -148,6 +170,10 @@ class EncryptedEndpointsMiddleware:
 
         try:
             encryptedURL = EncryptedURL(request.url.path, self.delimiter)
+
+            test = encryptedURL.get_shareable_url(self.main_key, self.identifier_extractor(request))
+            encryptedURL = EncryptedURL(test, self.delimiter)
+
             identifier = self.identifier_extractor(request)
             path_segments = encryptedURL.decrypt_url(self.main_key, identifier)
 
@@ -206,7 +232,7 @@ app = FastAPI()
 
 app.add_middleware(
     middleware_class=EncryptedEndpointsMiddleware,
-    main_key=b"secret_key",
+    main_key=b"0" * 64,
     templates=templates,
 )  # Set middleware global. This will encrypt all routes. See above for more granular control.
 
