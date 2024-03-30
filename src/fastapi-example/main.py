@@ -1,22 +1,25 @@
+import os
 from html import escape
 from pprint import pprint
 from typing import Annotated, Optional
 from uuid import uuid4
 
+from ee.fastapi.middleware import EncryptedEndpointsMiddleware
 from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
-from src.eefastapi.middleware import EncryptedEndpointsMiddleware
-import os
 
 app = FastAPI()
-key = os.urandom(32)
-app.add_middleware(EncryptedEndpointsMiddleware, key=key)
-
-
 templates = Jinja2Templates(directory="templates")
+
+app.add_middleware(
+    middleware_class=EncryptedEndpointsMiddleware,
+    main_key=b"0" * 64,
+    templates=templates,
+)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -76,6 +79,11 @@ def get_current_user(
     if username in users and users[username].password == password:
         user = users[username]
     return user
+
+
+@app.get("/templates/scripts.js")
+def get_js(request: Request):
+    return templates.TemplateResponse("scripts.js", {"request": request})
 
 
 @app.get("/")

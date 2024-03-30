@@ -15,7 +15,7 @@ function generatePostHTML(post) {
 
 // Load and display posts on page load
 function loadAndDisplayPosts() {
-    fetch('/posts/')
+    fetch('{{encrypt_value("/posts/", request)}}')
         .then(response => response.json())
         .then(data => {
             const postsContainer = document.querySelector('.posts-section');
@@ -32,7 +32,7 @@ function submitVote(postId, voteValue) {
         user_vote: voteValue
     };
 
-    fetch('/vote/', {
+    fetch('{{encrypt_value("/vote/", request)}}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const content = document.getElementById('postContent').value.trim();
 
         if (title && content) {
-            fetch('/posts/', {
+            fetch('{{encrypt_value("/posts/", request)}}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

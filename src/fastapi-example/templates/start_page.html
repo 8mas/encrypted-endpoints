@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Encrypted Endpoints Demo</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="{{encrypt_value('/static/styles.css', request)}}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 
@@ -13,7 +13,8 @@
     <header>
         <h1>Encrypted Endpoints Demo</h1>
         {% if user %}
-        <i class="fas fa-sign-out-alt logout-icon" onclick="location.href='/logout/'"></i> {% endif %}
+        <i class="fas fa-sign-out-alt logout-icon" onclick="location.href='{{encrypt_value('/logout/', request)}}'"></i>
+        {% endif %}
     </header>
 
     <main>
@@ -29,7 +30,7 @@
             </div>
             {% else %}
             <div class="login-register-form">
-                <form action="/auth/" method="post">
+                <form action="{{encrypt_value('/auth/', request)}}" method="post">
                     <h3>Login/Register</h3>
                     <label for="username">Username:</label>
                     <input type="text" id="username" name="username" required>
@@ -66,7 +67,7 @@
         </section>
     </main>
 
-    <script src="/static/scripts.js" defer></script>
+    <script src="{{encrypt_value('/templates/scripts.js', request)}}" defer></script>
 
 </body>
 
