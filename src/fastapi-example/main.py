@@ -29,6 +29,7 @@ class Post(BaseModel):
     content: str
     author: Optional[str] = None
     votes: int = 0
+    hidden_details: str = "This showscases partial encrypted paths due to dynamic content"
 
     @field_validator("title", "content", "author")
     @classmethod
@@ -135,7 +136,6 @@ def create_post(post: Post, user: User = Depends(get_current_user)):
     post.author = user.username
     post.votes = 0
     posts[post.id] = post
-    pprint(post)
     return post
 
 

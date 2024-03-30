@@ -1,7 +1,7 @@
 // Generate HTML for a post
 function generatePostHTML(post) {
     return `<div class="post" data-post-id="${post.id}">
-                <h3>${post.title}</h3>
+                <h3><a href="{{encrypt_value('/posts/', request)}}${post.id}" class="post-title">${post.title}</a></h3>
                 <p>${post.content}</p>
                 <p>Author: ${post.author}</p>
                 <div class="vote-buttons">
@@ -21,6 +21,11 @@ function loadAndDisplayPosts() {
             const postsContainer = document.querySelector('.posts-section');
             data.posts.forEach(post => {
                 postsContainer.insertAdjacentHTML('afterbegin', generatePostHTML(post));
+
+                const newPostElement = postsContainer.firstChild;
+                newPostElement.addEventListener('click', () => {
+                    window.location.href = `/posts/${post.id}`;
+                });
             });
         })
         .catch(error => console.error('Error loading posts:', error));
