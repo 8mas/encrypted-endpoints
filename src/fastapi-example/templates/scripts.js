@@ -21,11 +21,6 @@ function loadAndDisplayPosts() {
             const postsContainer = document.querySelector('.posts-section');
             data.posts.forEach(post => {
                 postsContainer.insertAdjacentHTML('afterbegin', generatePostHTML(post));
-
-                const newPostElement = postsContainer.firstChild;
-                newPostElement.addEventListener('click', () => {
-                    window.location.href = `/posts/${post.id}`;
-                });
             });
         })
         .catch(error => console.error('Error loading posts:', error));
