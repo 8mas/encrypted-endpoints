@@ -180,7 +180,7 @@ class EncryptedURL:
     @staticmethod
     @lru_cache(maxsize=1024)
     def encrypt_value(
-        main_key: bytes, value: bytes, identifier: bytes, delimiter="~"
+        main_key: bytes, value: bytes, identifier: bytes, delimiter="~", shared=False
     ) -> str:
         """Encrypts a value with the main key and identifier.
         This function is indidirectly called by the middleware.
@@ -188,6 +188,7 @@ class EncryptedURL:
         Args:
             delimiter (str, optional): A string used to delimit encrypted segments within the resultant encrypted
                 value. Defaults to "~", but can be customized based on requirements.
+            shared (bool, optional): Whether the encrypted value should be shareable or not. Defaults to False.
 
         Returns:
             str: The encrypted representation of the value, including delimiters as specified.
@@ -196,7 +197,15 @@ class EncryptedURL:
         encryptor = EncryptedURL._get_encryptor(derived_key)
         encrypted_value = encryptor.encrypt(value, None)
         encrypted_value_base64 = base64.urlsafe_b64encode(encrypted_value).decode()
-        return f"{delimiter}{encrypted_value_base64}{delimiter}"
+        normal_value = f"{delimiter}{encrypted_value_base64}{delimiter}"
+
+        if shared:
+            shareable_value = EncryptedURL(normal_value, delimiter).get_shareable_url(
+                main_key, identifier
+            )
+            return shareable_value
+
+        return normal_value
 
     @staticmethod
     def _get_encryptor(derived_key: bytes) -> AESSIV:
@@ -210,7 +219,6 @@ class EncryptedURL:
         return kdf.derive(main_key + identifier)
 
 
-# TODO Feature: support for link sharing & session ressumption
 class EncryptedEndpointsMiddleware:
     """EncryptedEndpointsMiddleware. Intercepts requests and decrypts the URL path and query parameters.
     Passes the decrypted URL back to the application.
@@ -284,11 +292,6 @@ class EncryptedEndpointsMiddleware:
         try:
             encryptedURL = EncryptedURL(request.url.path, self.delimiter)
 
-            # test = encryptedURL.get_shareable_url(
-            #     self.main_key, self.identifier_extractor(request)
-            # )
-            # encryptedURL = EncryptedURL(test, self.delimiter)
-
             identifier = self.identifier_extractor(request)
             url_segments = encryptedURL.decrypt_url(self.main_key, identifier)
 
@@ -311,7 +314,7 @@ class EncryptedEndpointsMiddleware:
 
         return await self.app(new_scope, receive, send)
 
-    def encrypt_value(self, value: bytes, request: Request) -> str:
+    def encrypt_value(self, value: bytes, request: Request, shared=False) -> str:
         """Encrypts given value with the identifier of the request.
         This function is called from the Jinja2 template when specified.
 
@@ -325,11 +328,11 @@ class EncryptedEndpointsMiddleware:
 
         identifier = self.identifier_extractor(request)
         return EncryptedURL.encrypt_value(
-            self.main_key, value, identifier, self.delimiter
+            self.main_key, value, identifier, self.delimiter, shared
         )
 
     @staticmethod
-    def default_extract_identifier(request: Request):
+    def default_extract_identifier(request: Request) -> bytes:
         return request.client.host.encode()
 
     @staticmethod
