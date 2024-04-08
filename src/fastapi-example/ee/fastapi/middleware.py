@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from fastapi import Request, Response
 from fastapi.routing import APIRoute
+from functools import lru_cache
 
 
 class SegmentType(Enum):
@@ -23,6 +24,8 @@ class Segment:
     segment_type: SegmentType
 
 
+# TODO token mode: use a unique token per user (statefull)
+# TODO mac mode: use a mac for every ULR without encryption
 class EncryptedURL:
     SHARED_KEY_HEADER = "!"
 
@@ -114,6 +117,7 @@ class EncryptedURL:
         return aessiv.decrypt(shared_identifier_bytes, [aad])
 
     @staticmethod
+    @lru_cache(maxsize=1024)
     def encrypt_value(main_key: bytes, value: bytes, identifier: bytes, delimiter="~") -> str:
         derived_key = EncryptedURL._derive_key(main_key, identifier)
         encryptor = EncryptedURL._get_encryptor(derived_key)
@@ -127,6 +131,7 @@ class EncryptedURL:
         return aessiv
 
     @staticmethod
+    @lru_cache(maxsize=1024)
     def _derive_key(main_key: bytes, identifier: bytes) -> bytes:
         kdf = HKDF(hashes.SHA256(), 32, None, b"encrypted-endpoints-fastapi")
         return kdf.derive(main_key + identifier)
@@ -190,6 +195,8 @@ class EncryptedEndpointsMiddleware:
         return await self.app(new_scope, receive, send)
 
     def encrypt_value(self, value: bytes, request: Request) -> str:
+        if type(value) == int:
+            value = str(value).encode()
         if type(value) == str:
             value = value.encode()
 
