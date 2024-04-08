@@ -1,4 +1,3 @@
-import os
 from html import escape
 from pprint import pprint
 from typing import Annotated, Optional
@@ -11,13 +10,20 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
+
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+
+
+def extract_identifier_demo(request: Request) -> bytes:
+    return f"{request.client.host}{request.client.port}".encode()
+
 
 app.add_middleware(
     middleware_class=EncryptedEndpointsMiddleware,
     main_key=b"0" * 64,
     templates=templates,
+    identifier_extractor=extract_identifier_demo,
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -29,7 +35,9 @@ class Post(BaseModel):
     content: str
     author: Optional[str] = None
     votes: int = 0
-    hidden_details: str = "This showscases partial encrypted paths due to dynamic content"
+    hidden_details: str = (
+        "This showscases partial encrypted paths due to dynamic content"
+    )
 
     @field_validator("title", "content", "author")
     @classmethod
@@ -74,7 +82,8 @@ posts[d2.id] = d2  # type: ignore
 
 
 def get_current_user(
-    username: Annotated[str | None, Cookie()] = None, password: Annotated[str | None, Cookie()] = None
+    username: Annotated[str | None, Cookie()] = None,
+    password: Annotated[str | None, Cookie()] = None,
 ):
     user = None
     if username in users and users[username].password == password:
@@ -90,9 +99,11 @@ def get_js(request: Request):
 @app.get("/")
 def get_start_page(request: Request, user: User = Depends(get_current_user)):
     current_user = user.model_dump() if user else None
-    return templates.TemplateResponse(
-        "start_page.html", {"request": request, "user": current_user, "posts": list(posts.values())}
+    startpage = templates.TemplateResponse(
+        "start_page.html",
+        {"request": request, "user": current_user, "posts": list(posts.values())},
     )
+    return startpage
 
 
 @app.post("/auth/")
