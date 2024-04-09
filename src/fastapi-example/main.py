@@ -15,7 +15,7 @@ templates = Jinja2Templates(directory="templates")
 
 
 def extract_identifier_demo(request: Request) -> bytes:
-    return f"{request.client.host}{request.client.port}".encode()
+    return request.client.host.encode()
 
 
 def pre_decrypt_filter_route(request: Request):
