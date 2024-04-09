@@ -13,6 +13,11 @@ from fastapi import Request, Response
 from fastapi.routing import APIRoute
 
 
+class MiddlewareWrapper:
+    def set_middleware(self, middleware):
+        self.middleware: EncryptedEndpointsMiddleware = middleware
+
+
 class SegmentType(Enum):
     PLAIN = 1
     ENCRYPTED = 2
@@ -259,8 +264,9 @@ class EncryptedEndpointsMiddleware:
         templates=None,
         encryption_function_name="encrypt_value",
         identifier_extractor: Callable[[Request], bytes] = None,
-        pre_decrypt_filter_route: Callable[[str], bool] = None,
+        pre_decrypt_filter_route: Callable[[Request], bool] = None,
         url_validator: Callable[[list[Segment]], bool] = None,
+        middleware_obj: MiddlewareWrapper = None,
         delimiter="~",
     ):
         self.app = app
@@ -278,16 +284,15 @@ class EncryptedEndpointsMiddleware:
         if templates:
             templates.env.globals[encryption_function_name] = self.encrypt_value
 
-    async def __call__(self, scope, receive, send):
-        if (
-            scope["type"] != "http"
-            or scope["path"] == "/favicon.ico"
-            or self.pre_decrypt_filter_route(scope["path"])
-        ):
-            return await self.app(scope, receive, send)
+        if middleware_obj:
+            middleware_obj.set_middleware(self)
 
+    async def __call__(self, scope, receive, send):
         new_scope = scope.copy()
         request = Request(new_scope)
+
+        if scope["type"] != "http" or self.pre_decrypt_filter_route(request):
+            return await self.app(scope, receive, send)
 
         try:
             encryptedURL = EncryptedURL(request.url.path, self.delimiter)

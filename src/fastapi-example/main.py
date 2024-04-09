@@ -1,14 +1,13 @@
 from html import escape
-from pprint import pprint
 from typing import Annotated, Optional
 from uuid import uuid4
 
-from ee.fastapi.middleware import EncryptedEndpointsMiddleware
+from ee.fastapi.middleware import EncryptedEndpointsMiddleware, MiddlewareWrapper
 from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator
 
 
 app = FastAPI()
@@ -19,11 +18,25 @@ def extract_identifier_demo(request: Request) -> bytes:
     return f"{request.client.host}{request.client.port}".encode()
 
 
+def pre_decrypt_filter_route(request: Request):
+    if request.url.path == "/favicon.ico":
+        return True
+
+    if request.url.path == "/":
+        return True
+
+    return False
+
+
+middleware_obj = MiddlewareWrapper()
+
 app.add_middleware(
     middleware_class=EncryptedEndpointsMiddleware,
     main_key=b"0" * 64,
     templates=templates,
     identifier_extractor=extract_identifier_demo,
+    middleware_obj=middleware_obj,
+    pre_decrypt_filter_route=pre_decrypt_filter_route,
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -38,6 +51,8 @@ class Post(BaseModel):
     hidden_details: str = (
         "This showscases partial encrypted paths due to dynamic content"
     )
+    normal_url: str = ""
+    shared_url: str = ""
 
     @field_validator("title", "content", "author")
     @classmethod
@@ -65,7 +80,7 @@ d1 = Post(
     id=str(uuid4()),
     author="Reviewer1",
     title="This seems useful",
-    content="This looks like a really useful example of yleiour approach",
+    content="This looks like a really useful example of your approach",
     votes=1,
 )
 
@@ -123,17 +138,21 @@ def auth(username: str = Form(...), password: str = Form(...)) -> RedirectRespon
 def get_posts(user: User = Depends(get_current_user)):
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    pprint(posts)
     return {"posts": list(posts.values())}
 
 
 @app.get("/posts/{post_id}")
-def get_post(post_id: str, user: User = Depends(get_current_user)):
+def get_post(request: Request, post_id: str, user: User = Depends(get_current_user)):
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     post = posts.get(post_id)
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
+
+    post.normal_url = str(request.url)
+    post.shared_url = middleware_obj.middleware.encrypt_value(
+        f"{request.url.path}{request.url.query}", request, True
+    )
     return post
 
 
@@ -141,7 +160,6 @@ def get_post(post_id: str, user: User = Depends(get_current_user)):
 def create_post(post: Post, user: User = Depends(get_current_user)):
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    pprint(post)
 
     post.id = str(uuid4())
     post.author = user.username
