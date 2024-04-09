@@ -9,8 +9,9 @@ from urllib.parse import urlparse
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESSIV
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from fastapi import Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.routing import APIRoute
+from starlette.types import Receive, Scope, Send
 
 
 class MiddlewareWrapper:
@@ -266,6 +267,9 @@ class EncryptedEndpointsMiddleware:
         identifier_extractor: Callable[[Request], bytes] = None,
         pre_decrypt_filter_route: Callable[[Request], bool] = None,
         url_validator: Callable[[list[Segment]], bool] = None,
+        on_decryption_error: Callable[
+            [FastAPI, Receive, Scope, Send, Exception], None
+        ] = None,
         middleware_obj: MiddlewareWrapper = None,
         delimiter="~",
     ):
@@ -280,6 +284,8 @@ class EncryptedEndpointsMiddleware:
             pre_decrypt_filter_route if pre_decrypt_filter_route else lambda x: False
         )
         self.url_validator = url_validator if url_validator else lambda x: False
+
+        self.on_error = on_decryption_error or EncryptedEndpointsMiddleware.on_error
 
         if templates:
             templates.env.globals[encryption_function_name] = self.encrypt_value
@@ -304,8 +310,8 @@ class EncryptedEndpointsMiddleware:
             if url_segments and not url_segments[0].value.startswith("/"):
                 url_segments[0].value = "/" + url_segments[0].value
 
-            if self.url_validator(url_segments):
-                return await self.app(new_scope, receive, send)
+            if self.url_validator(url_segments):  # TODO think about this
+                raise ValueError("Malformed URL detected.")
 
             path_and_query = "".join([segment.value for segment in url_segments])
             decrypted_url = urlparse(path_and_query)
@@ -314,8 +320,8 @@ class EncryptedEndpointsMiddleware:
             new_scope["raw_path"] = new_scope["path"].encode()
             new_scope["query_string"] = decrypted_url.query.encode()
 
-        except Exception as e:
-            request = self.on_error(request, e)
+        except Exception as e:  # Todo think about this
+            return await self.on_error(self.app, new_scope, receive, send, e)
 
         return await self.app(new_scope, receive, send)
 
@@ -341,11 +347,9 @@ class EncryptedEndpointsMiddleware:
         return request.client.host.encode()
 
     @staticmethod
-    def on_error(request: Request, e: Exception) -> Request:
-        traceback.print_exc()
-        scope = request.scope.copy()
-        scope["path"] = "/"
-        return Request(scope)
+    async def on_error(app, scope, receive, send, e: Exception):
+        response = Response("400 - Bad Request. Accessed Invalid URL", status_code=400)
+        await response(scope, receive, send)
 
 
 """

@@ -15,7 +15,7 @@ templates = Jinja2Templates(directory="templates")
 
 
 def extract_identifier_demo(request: Request) -> bytes:
-    return request.client.host.encode()
+    return request.cookies.get("username", "").encode()
 
 
 def pre_decrypt_filter_route(request: Request):
@@ -164,9 +164,6 @@ def get_post(request: Request, post_id: str, user: User = Depends(get_current_us
     post.shared_url = preamble + middleware_obj.middleware.encrypt_value(
         f"{request.url.path}{request.url.query}".encode(), request, True
     )
-
-    print(post.normal_url)
-    print(post.shared_url)
 
     post_detail_page = templates.TemplateResponse(
         "post_detail.html", {"request": request, "post": post}
