@@ -48,9 +48,6 @@ class Post(BaseModel):
     content: str
     author: Optional[str] = None
     votes: int = 0
-    hidden_details: str = (
-        "This showscases partial encrypted paths due to dynamic content"
-    )
     normal_url: str = ""
     shared_url: str = ""
 
@@ -149,11 +146,33 @@ def get_post(request: Request, post_id: str, user: User = Depends(get_current_us
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    post.normal_url = str(request.url)
-    post.shared_url = middleware_obj.middleware.encrypt_value(
-        f"{request.url.path}{request.url.query}", request, True
+    preamble = (
+        str(request.url.scheme)
+        + "://"
+        + str(request.url.hostname)
+        + ":"
+        + str(request.url.port)
+        + "/"
     )
-    return post
+
+    post.normal_url = (
+        preamble
+        + middleware_obj.middleware.encrypt_value("/posts/".encode(), request)
+        + post_id
+    )
+    post.shared_url = preamble
+    post.shared_url = preamble + middleware_obj.middleware.encrypt_value(
+        f"{request.url.path}{request.url.query}".encode(), request, True
+    )
+
+    print(post.normal_url)
+    print(post.shared_url)
+
+    post_detail_page = templates.TemplateResponse(
+        "post_detail.html", {"request": request, "post": post}
+    )
+
+    return post_detail_page
 
 
 @app.post("/posts/", response_model=Post)

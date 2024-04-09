@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ post.title }}</title>
+    <link rel="stylesheet" href="{{encrypt_value('/static/styles.css', request)}}">
+</head>
+
+<body>
+    <header>
+        <h1>Post Details</h1>
+    </header>
+    <main>
+        <div class="post">
+            <h2>{{ post.title }}</h2>
+            <p><strong>Author:</strong> {{ post.author }}</p>
+            <p>{{ post.content | safe }}</p>
+            <p>Vote count: {{ post.votes }}</p>
+            <p><strong>URL / Endpoint Info</strong>
+                <a href="{{ post.normal_url }}">Normal Link</a> | <a href="{{ post.shared_url }}">Shared Link</a>
+            </p>
+        </div>
+    </main>
+</body>
+
+</html>
