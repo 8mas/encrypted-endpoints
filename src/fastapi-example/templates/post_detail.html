@@ -5,6 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ post.title }}</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const sharedUrl = "{{ post.shared_url }}";
+            window.history.pushState({ path: sharedUrl }, '', sharedUrl);
+        });
+    </script>
     <link rel="stylesheet" href="{{encrypt_value('/static/styles.css', request)}}">
 </head>
 
