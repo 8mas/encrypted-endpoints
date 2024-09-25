@@ -1,0 +1,10 @@
+# Encrypted Endoints Demo
+In this demonstration, we observe the behavior of encrypted endpoints in a web application, utilizing two instances of the Google Chrome browser: one in a normal tab (referred to as user01) and the other in an incognito tab (user02), ensuring no shared cookies between the sessions. The server log displayed at the bottom reveals the accessed URLs by the clients, illustrating the mechanism of encrypted endpoints.
+
+The process begins with user01 logging in, which triggers multiple encrypted URL accesses visible in the server log, yet these remain transparent to the user. This phase includes activities such as distributing votes on posts, with JavaScript operating in the background to send the required requests to the encrypted endpoints. Subsequently, a new post is created and receives an upvote.
+
+A new user is then registered through the incognito tab for user02, emphasizing that the windows for user01 and user02 do not share any cookies. This separation results in distinct encrypted endpoints for each user, as evidenced in the server log. The demonstration extends to displaying the page source, revealing that not only API endpoints but also resource paths, including CSS and JavaScript resources, are encrypted.
+
+The demonstration of link sharing begins with user01 clicking on a post, leading to a detailed page view. Initially, a standard, non-shareable link is provided to user02, who is unable to access this link and encounters a generic error message.
+
+Subsequently, user01 shares a shareable URL, which is identical to the URL in the address bar of user01's browser. This approach enhances user convenience by eliminating the need to manually activate a share button. When user02 accesses this shareable link, the URL in their browser's address bar automatically updates to reflect a shared URL from user02's perspective. This functionality showcases the seamless integration of encrypted endpoints and shareable links within the web application.

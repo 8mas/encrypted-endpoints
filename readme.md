@@ -12,12 +12,12 @@ A demonstration video (`demo.mp4`) is included in the repository to showcase thi
 
 The project is structured as follows:
 
-- `/src/fastapi-example`: Contains all the test code.
-- `/src/fastapi-example/ee`: Houses the middleware implementing the encryption approach.
+- `fastapi-example`: Contains all the test code.
+- `fastapi-example/ee`: Houses the middleware implementing the encryption approach.
 
 ## Requirements
 
-The example has been tested with Python 3.12.
+The example has been tested with **Python 3.12** please use this version.
 
 ### Installation
 
@@ -32,6 +32,6 @@ pip install -r requirements.txt
 To start the example application, navigate to the project directory and run the FastAPI server using `uvicorn`:
 
 ```bash
-cd ./src/fastapi-example
+cd fastapi-example
 uvicorn main:app --reload
 ```
