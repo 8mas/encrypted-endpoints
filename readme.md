@@ -1,6 +1,9 @@
-# Encrypted Endpoints Example Project
+# Encrypted Endpoints
 
-This project demonstrates how to implement encrypted endpoints using FastAPI for the backend and HTML, JavaScript, CSS for the frontend (via Jinja2 Templates). It support encrypted endpoints on user basis, as well as link sharing.
+This project is designed to combat web bots by implementing encrypted endpoints, which are unique to each user account. Traditional obfuscation techniques and CAPTCHA mechanisms are becoming less effective due to advances in machine learning and bot automation. By using encrypted endpoints, this project aims to make it significantly more difficult for bots to scale across multiple accounts, as each bot instance would need to extract user-specific URLs. This approach helps mitigate common bot-related issues such as data scraping, spam, and fake interactions.
+
+This project, part of a research paper to be published at the RAID 24 conference, demonstrates the implementation of encrypted endpoints to counter bot scalability. Development will continue following the official publication at the start of October, with further enhancements and features planned.
+
 
 ## Overview
 
